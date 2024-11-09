@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stationery Management System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f3f4f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+        header, footer {
+            background-color: #007bff;
+            color: white;
+            text-align: center;
+            padding: 10px 0;
+        }
+        .container {
+            width: 600px;
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], select, input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #signatureCanvas {
+            width: 100%;
+            height: 150px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: crosshair;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header" style="background-color:#4CAF50; color: white; height: 48px; font-size: 38px; padding: 20px;">
+            Stationery Management System
+        </div>
+
+        <hr color="gray" size="2,5" width="85%" />
+
+        <div class="form-group">
+            <label for="name">Name & Surname:</label>
+            <input type="text" id="name" placeholder="Enter name and surname">
+        </div>
+
+        <div class="form-group">
+            <label for="department">Department:</label>
+            <input type="text" id="department" placeholder="Enter department">
+        </div>
+
+        <div class="form-group">
+            <label for="item">Stationery Item:</label>
+            <select id="item">
+                <option value="pen">pen</option>
+                <option value="book">book</option>
+                <option value="paper">paper</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="quantity">Quantity:</label>
+            <input type="number" id="quantity" placeholder="Enter quantity">
+        </div>
+
+        <div class="form-group">
+            <label>Signature:</label>
+            <canvas id="signatureCanvas"></canvas>
+        </div>
+
+        <div class="buttons">
+            <button onclick="recordEntry()">Record Entry</button>
+            <button onclick="displayInventory()">View Inventory</button>
+            <button onclick="updateInventory()">Update Inventory</button>
+            <button onclick="viewPastIssuances()">Past Issuances</button>
+            <button onclick="exportToExcel()">Export Issuances to Excel</button>
+        </div>
+
+        <hr color="red" size="3" width="85%" />
+
+        <div id="output" style="margin-top: 20px;"></div>
+
+        <hr color="red" size="3" width="85%" />
+
+        <footer class="footer" style="background-color:#4CAF50; color: white; height: 24px; font-size: 20px; padding: 20px;">
+            <p>&copy; <span id="year"></span> All Rights & Coding Reserved By Keanen Clarke-Halkett.</p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById("year").textContent = new Date().getFullYear();
+
+        // Default inventory data and issuance entries
+        let entries = JSON.parse(localStorage.getItem('entries')) || [];
+        let inventory = JSON.parse(localStorage.getItem('inventory')) || { pen: 10, book: 10, paper: 10 };
+
+        // Signature canvas handling
+        const canvas = document.getElementById('signatureCanvas');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+
+        // Resize canvas to fit container
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 150;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Initialize event listeners for canvas
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mousemove', drawSignature);
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchmove', drawSignature);
+
+        function startDrawing(event) {
+            drawing = true;
+            ctx.beginPath();
+            const pos = getCanvasPosition(event);
+            ctx.moveTo(pos.x, pos.y);
+            event.preventDefault();
+        }
+
+        function stopDrawing() {
+            drawing = false;
+            ctx.closePath();
+        }
+
+        function drawSignature(event) {
+            if (!drawing) return;
+            const pos = getCanvasPosition(event);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.strokeStyle = "#333";
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            event.preventDefault();
+        }
+
+        function getCanvasPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX ? event.clientX - rect.left : event.touches[0].clientX - rect.left;
+            const y = event.clientY ? event.clientY - rect.top : event.touches[0].clientY - rect.top;
+            return { x, y };
+        }
+
+        function getSignatureData() {
+            return canvas.toDataURL();  // Base64 representation of the signature
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function recordEntry() {
+            const name = document.getElementById('name').value.trim();
+            const department = document.getElementById('department').value.trim();
+            const item = document.getElementById('item').value;
+            const quantity = parseInt(document.getElementById('quantity').value);
+            const signature = getSignatureData();
+
+            if (name && department && item && quantity > 0) {
+                if (inventory[item] >= quantity) {
+                    inventory[item] -= quantity;
+                    const entry = { name, department, item, quantity, signature, date: new Date().toLocaleString() };
+                    entries.push(entry);
+                    localStorage.setItem('entries', JSON.stringify(entries));
+                    localStorage.setItem('inventory', JSON.stringify(inventory));
+
+                    alert("Entry recorded successfully.");
+                    document.getElementById('name').value = '';
+                    document.getElementById('department').value = '';
+                    document.getElementById('quantity').value = '';
+                    clearCanvas();
+                } else {
+                    alert("Not enough stock for this item.");
+                }
+            } else {
+                alert("Please fill in all fields correctly.");
+            }
+        }
+
+        function displayInventory() {
+            let output = "<h3>Current Inventory</h3><ul>";
+            for (const item in inventory) {
+                output += `<li>${item}: ${inventory[item]}</li>`;
+            }
+            output += '</ul>';
+            document.getElementById('output').innerHTML = output;
+        }
+
+        function updateInventory() {
+            const item = prompt(`Enter the item name to update (e.g., pen, book, paper):`).toLowerCase();
+            if (inventory[item] !== undefined) {
+                const newQuantity = parseInt(prompt(`Enter the new quantity for ${item}:`));
+                if (!isNaN(newQuantity) && newQuantity >= 0) {
+                    inventory[item] = newQuantity;
+                    localStorage.setItem('inventory', JSON.stringify(inventory));
+                    alert("Inventory updated successfully.");
+                } else {
+                    alert("Please enter a valid quantity.");
+                }
+            } else {
+                alert("Item not found in inventory.");
+            }
+        }
+
+        function viewPastIssuances() {
+            let output = '<h3>Past Issuances</h3><ul>';
+            if (entries.length === 0) {
+                output += "<li>No past issuances found.</li>";
+            } else {
+                entries.forEach(entry => {
+                    output += `
+                        <li>
+                            <strong>Name:</strong> ${entry.name}<br>
+                            <strong>Department:</strong> ${entry.department}<br>
+                            <strong>Item:</strong> ${entry.item}<br>
+                            <strong>Quantity:</strong> ${entry.quantity}<br>
+                            <strong>Date:</strong> ${entry.date}<br>
+                            <strong>Signature:</strong><br>
+                            <img src="${entry.signature}" alt="Signature" style="border: 1px solid #ccc; width: 150px;">
+                        </li><br>`;
+                });
+            }
+            output += '</ul>';
+            document.getElementById('output').innerHTML = output;
+        }
+
+        function exportToExcel() {
+            if (entries.length === 0) {
+                alert("No past issuances to export.");
+                return;
+            }
+
+            // Prepare data for Excel, including signature as base64 data
+            const data = entries.map(entry => ({
+                Name: entry.name,
+                Department: entry.department,
+                Item: entry.item,
+                Quantity: entry.quantity,
+                Date: entry.date,
+                Signature: entry.signature  // Including signature data (base64 image)
+            }));
+
+            // Create a new worksheet
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Past Issuances");
+
+            // Export to Excel file
+            XLSX.writeFile(workbook, "Past_Issuances.xlsx");
+        }
+    </script>
+</body>
+</html>
